@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Translate Agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --panel: #1a1d27; --panel2: #242836; --border: #2e3344;
+      --text: #e6e8ee; --muted: #8b90a0; --accent: #6c8cff; --accent2: #4a6bf0;
+      --ok: #34d399; --err: #f87171; --user: #2a3450; --ai: #2d3a30;
+    }
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); -webkit-app-region: drag; }
+    header h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
+    header h1 img { width: 22px; height: 22px; vertical-align: middle; margin-right: 6px; }
+    .tabs { display: flex; gap: 4px; -webkit-app-region: no-drag; }
+    .tab { padding: 6px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; color: var(--muted); transition: all .15s; user-select: none; }
+    .tab:hover { color: var(--text); background: var(--panel2); }
+    .tab.active { background: var(--accent); color: #fff; }
+    .spacer { flex: 1; }
+    .btn { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); cursor: pointer; font-size: 13px; transition: all .15s; -webkit-app-region: no-drag; }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent2); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    main { flex: 1; overflow: hidden; position: relative; }
+    .view { position: absolute; inset: 0; display: none; padding: 20px; overflow: auto; }
+    .view.active { display: flex; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input, select, textarea { width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    .field { margin-bottom: 16px; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    #view-translate { flex-direction: column; gap: 14px; }
+    .tr-toolbar { display: flex; gap: 10px; align-items: end; }
+    .tr-cols { flex: 1; display: flex; gap: 14px; min-height: 0; }
+    .tr-col { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+    .tr-col textarea { flex: 1; resize: none; min-height: 200px; line-height: 1.6; }
+    .tr-out { flex: 1; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); line-height: 1.6; min-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+    #view-word { flex-direction: column; gap: 14px; }
+    .word-toolbar { display: flex; gap: 10px; align-items: end; }
+    .word-toolbar input { font-size: 15px; }
+    .word-out { flex: 1; padding: 16px 20px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); line-height: 1.8; min-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 14px; }
+    #view-chat { flex-direction: column; padding: 0; }
+    .chat-log { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+    .msg { max-width: 80%; padding: 12px 16px; border-radius: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    .msg.user { align-self: flex-end; background: var(--user); border-bottom-right-radius: 4px; }
+    .msg.assistant { align-self: flex-start; background: var(--ai); border-bottom-left-radius: 4px; }
+    .msg.system { align-self: center; background: transparent; color: var(--muted); font-size: 13px; max-width: 100%; }
+    .chat-input { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); background: var(--panel); }
+    .chat-input textarea { resize: none; height: 60px; }
+    .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--panel2); color: var(--muted); -webkit-app-region: no-drag; }
+    .badge.ok { background: rgba(52,211,153,.15); color: var(--ok); }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--border); font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 99; }
+    .toast.show { opacity: 1; }
+    .toast.err { border-color: var(--err); color: var(--err); }
+    .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--muted); border-top-color: var(--accent); border-radius: 50%; animation: sp .6s linear infinite; }
+    @keyframes sp { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><img src="app.ico" alt="" /> Translate Agent</h1>
+    <div class="tabs">
+      <div class="tab active" data-view="translate">翻译</div>
+      <div class="tab" data-view="word">单词</div>
+      <div class="tab" data-view="chat">对话</div>
+      <div class="tab" data-view="favs">收藏</div>
+      <div class="tab" data-view="history">历史</div>
+      <div class="tab" data-view="settings">设置</div>
+    </div>
+    <div class="spacer"></div>
+    <span class="badge" id="statusBadge">未配置</span>
+  </header>
+  <main>
+    <div class="view active" id="view-translate">
+      <div class="tr-toolbar">
+        <div style="width:180px"><label>目标语言</label>
+          <select id="targetLang">
+            <option value="中文">中文</option><option value="English">English</option>
+            <option value="日本語">日本語</option><option value="한국어">한국어</option>
+            <option value="Français">Français</option><option value="Deutsch">Deutsch</option>
+            <option value="Español">Español</option><option value="Русский">Русский</option>
+          </select>
+        </div>
+        <button class="btn primary" id="btnTranslate">翻译</button>
+        <button class="btn" id="btnSwap">⇄</button>
+        <div class="spacer"></div>
+        <button class="btn" id="btnClearTr">清空</button>
+      </div>
+      <div class="tr-cols">
+        <div class="tr-col"><label>原文</label><textarea id="srcText" placeholder="输入要翻译的文本…"></textarea></div>
+        <div class="tr-col"><label>译文 <span id="trLoading" style="display:none"><span class="spin"></span></span></label><div class="tr-out" id="outText"></div></div>
+      </div>
+    </div>
+    <div class="view" id="view-word">
+      <div class="word-toolbar">
+        <div style="flex:1"><label>查词（中英文均可）</label><input id="wordInput" placeholder="输入单词或中文，如 paper / 你好，回车查询…" /></div>
+        <div style="width:160px"><label>难度</label>
+          <select id="wordDiff">
+            <option value="初中">初中</option><option value="高中">高中</option><option value="高考">高考</option>
+            <option value="四级">四级 (CET-4)</option><option value="六级">六级 (CET-6)</option><option value="考研">考研</option>
+            <option value="专四">专四 (TEM-4)</option><option value="专八">专八 (TEM-8)</option>
+            <option value="雅思">雅思 (IELTS)</option><option value="托福">托福 (TOEFL)</option><option value="GRE">GRE</option>
+          </select>
+        </div>
+        <button class="btn primary" id="btnWord">查词</button>
+        <button class="btn" id="btnFavWord">★ 收藏</button>
+        <button class="btn" id="btnClearWord">清空</button>
+      </div>
+      <div class="word-out" id="wordOut"><span style="color:var(--muted)">输入单词后回车，将显示详细释义、近义词、派生词、例句等…</span></div>
+    </div>
+    <div class="view" id="view-chat">
+      <div class="chat-log" id="chatLog"></div>
+      <div class="chat-input">
+        <textarea id="chatInput" placeholder="输入消息，Enter 发送，Shift+Enter 换行…"></textarea>
+        <button class="btn primary" id="btnSend">发送</button>
+        <button class="btn" id="btnClearChat">清空</button>
+      </div>
+    </div>
+    <div class="view" id="view-favs" style="flex-direction:column">
+      <div style="display:flex;align-items:end;gap:10px;margin-bottom:14px">
+        <h3 style="font-size:15px;color:var(--muted)">单词本</h3>
+        <span id="favCount" class="badge"></span>
+        <div class="spacer" style="flex:1"></div>
+        <button class="btn sm" id="btnExportFav">导出</button>
+      </div>
+      <div id="favList" style="flex:1;overflow-y:auto"></div>
+    </div>
+    <div class="view" id="view-history" style="flex-direction:column">
+      <div style="display:flex;align-items:end;gap:10px;margin-bottom:14px">
+        <h3 style="font-size:15px;color:var(--muted)">历史记录</h3>
+        <select id="histFilter" style="width:120px;display:inline-block">
+          <option value="">全部</option>
+          <option value="translate">翻译</option>
+          <option value="word">单词</option>
+          <option value="chat">对话</option>
+        </select>
+        <div class="spacer" style="flex:1"></div>
+        <button class="btn sm" id="btnClearHist">清空</button>
+      </div>
+      <div id="histList" style="flex:1;overflow-y:auto"></div>
+    </div>
+    <div class="view" id="view-settings" style="flex-direction:column">
+      <div style="max-width:600px;width:100%">
+        <div class="field"><label>API 地址 (apiBase)</label><input id="cfgBase" placeholder="https://api.openai.com  或  https://api.deepseek.com" /><div class="hint">兼容 OpenAI 的接口地址，可不带 /v1 后缀。</div></div>
+        <div class="field"><label>API Key</label><input id="cfgKey" type="password" placeholder="sk-..." /></div>
+        <div class="field" style="display:flex;gap:10px;align-items:end">
+          <div style="flex:1"><label>模型</label><select id="cfgModel"><option value="">先点击右侧按钮探测…</option></select></div>
+          <button class="btn" id="btnProbe">探测模型</button>
+        </div>
+        <div class="field" style="display:flex;gap:10px;align-items:end">
+          <div style="flex:1"><label>单词难度</label>
+            <select id="cfgWordDiff">
+              <option value="初中">初中</option><option value="高中">高中</option><option value="高考">高考</option>
+              <option value="四级">四级 (CET-4)</option><option value="六级">六级 (CET-6)</option><option value="考研">考研</option>
+              <option value="专四">专四 (TEM-4)</option><option value="专八">专八 (TEM-8)</option>
+              <option value="雅思">雅思 (IELTS)</option><option value="托福">托福 (TOEFL)</option><option value="GRE">GRE</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:24px"><button class="btn primary" id="btnSave">保存配置</button></div>
+      </div>
+    </div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="renderer.js"></script>
+</body>
+</html>

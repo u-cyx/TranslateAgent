@@ -1,0 +1,39 @@
+{
+  "name": "translate-agent",
+  "version": "1.0.0",
+  "description": "JS translation AI agent (GUI + CLI executables)",
+  "main": "gui/main.js",
+  "scripts": {
+    "start:gui": "electron .",
+    "start:cli": "node cli.js",
+    "build:cmd": "pkg cli.js -t node22-win-x64 -o dist/translate_cmd.exe --compress GZip",
+    "build:gui": "electron-builder --win portable",
+    "build": "npm run build:cmd && npm run build:gui",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "build": {
+    "appId": "com.translateagent.app",
+    "productName": "translate_gui",
+    "files": [
+      "gui/**/*",
+      "lib.js"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "translate_gui.exe"
+    },
+    "portable": {
+      "artifactName": "translate_gui.exe"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.22.0",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3"
+  }
+}

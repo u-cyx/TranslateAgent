@@ -1,0 +1,398 @@
+<html>
+<head>
+<meta http-equiv="x-ua-compatible" content="IE=edge" />
+<meta charset="utf-8" />
+<hta:application id="oApp" applicationname="TranslateAgent" icon="app.ico" border="thin" caption="yes"
+  contextmenu="no" innerborder="no" maximizebutton="no" minimizebutton="yes" scroll="no"
+  selection="no" showintaskbar="yes" singleinstance="yes" sysmenu="yes" windowstate="normal" />
+<title>Translate Agent</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #0f1117; color: #e6e8ee;
+    font-size: 14px;
+  }
+  #header {
+    height: 48px; line-height: 48px; padding: 0 16px;
+    background: #1a1d27; border-bottom: 1px solid #2e3344;
+    white-space: nowrap;
+  }
+  #header .logo { font-size: 16px; font-weight: 600; display: inline-block; vertical-align: middle; }
+  .tab {
+    display: inline-block; vertical-align: middle; padding: 6px 14px; margin-left: 6px;
+    border-radius: 8px; cursor: pointer; color: #8b90a0; font-size: 13px;
+  }
+  .tab:hover { color: #e6e8ee; background: #242836; }
+  .tab.active { background: #6c8cff; color: #fff; }
+  #statusBadge {
+    float: right; margin-top: 14px; font-size: 11px; padding: 2px 8px;
+    border-radius: 10px; background: #242836; color: #8b90a0;
+  }
+  #statusBadge.ok { background: #1c3a30; color: #34d399; }
+  .btn {
+    padding: 7px 14px; border-radius: 8px; border: 1px solid #2e3344;
+    background: #242836; color: #e6e8ee; cursor: pointer; font-size: 13px; font-family: inherit;
+  }
+  .btn:hover { border-color: #6c8cff; }
+  .btn.primary { background: #6c8cff; border-color: #6c8cff; color: #fff; }
+  .btn.primary:hover { background: #4a6bf0; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.sm { padding: 4px 10px; font-size: 12px; }
+  #main { position: absolute; top: 48px; left: 0; right: 0; bottom: 0; }
+  .view { position: absolute; inset: 0; padding: 16px; display: none; overflow: auto; }
+  .view.active { display: block; }
+  label { display: block; font-size: 12px; color: #8b90a0; margin-bottom: 5px; }
+  input, select, textarea {
+    width: 100%; padding: 8px 11px; border-radius: 8px; border: 1px solid #2e3344;
+    background: #0f1117; color: #e6e8ee; font-size: 14px; font-family: inherit; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #6c8cff; }
+  .field { margin-bottom: 14px; }
+  .hint { font-size: 11px; color: #8b90a0; margin-top: 4px; }
+
+  #view-translate .toolbar { margin-bottom: 12px; white-space: nowrap; }
+  #view-translate .toolbar .lang { width: 170px; display: inline-block; vertical-align: middle; }
+  #view-translate .toolbar .btn { margin-left: 8px; vertical-align: middle; }
+  #view-translate .clear { float: right; }
+  .cols { font-size: 0; }
+  .col { width: 49%; display: inline-block; vertical-align: top; font-size: 14px; }
+  .col + .col { margin-left: 2%; }
+  .col textarea { width: 100%; height: 360px; resize: none; line-height: 1.6; }
+  .col .out {
+    width: 100%; height: 360px; overflow: auto; padding: 8px 11px; line-height: 1.6;
+    border: 1px solid #2e3344; border-radius: 8px; background: #0f1117; white-space: pre-wrap; word-break: break-word;
+  }
+
+  #view-chat { padding: 0; }
+  #chatLog {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 96px; overflow-y: auto; padding: 16px;
+  }
+  .msg {
+    max-width: 80%; padding: 10px 14px; border-radius: 12px; line-height: 1.6;
+    white-space: pre-wrap; word-break: break-word; margin-bottom: 10px;
+  }
+  .msg.user { margin-left: auto; background: #2a3450; border-bottom-right-radius: 4px; }
+  .msg.assistant { margin-right: auto; background: #2d3a30; border-bottom-left-radius: 4px; }
+  .msg.system { margin: 0 auto; background: transparent; color: #8b90a0; font-size: 12px; max-width: 100%; text-align: center; }
+  #chatBar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 96px; padding: 14px 16px;
+    border-top: 1px solid #2e3344; background: #1a1d27; white-space: nowrap;
+  }
+  #chatInput { width: calc(100% - 130px); height: 68px; resize: none; display: inline-block; vertical-align: middle; }
+  #chatBar .btn { margin-left: 10px; vertical-align: middle; }
+
+  #view-settings .wrap { max-width: 560px; }
+  .row { white-space: nowrap; }
+  .row .grow { width: calc(100% - 110px); display: inline-block; vertical-align: middle; }
+  .row .btn { margin-left: 10px; vertical-align: middle; }
+  .savebar { margin-top: 18px; }
+
+  #toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    padding: 9px 18px; border-radius: 8px; background: #242836; border: 1px solid #2e3344;
+    font-size: 13px; display: none; z-index: 99;
+  }
+  #toast.show { display: block; }
+  #toast.err { border-color: #f87171; color: #f87171; }
+  .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid #8b90a0; border-top-color: #6c8cff; border-radius: 50%; animation: sp .6s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  @-ms-keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="header">
+  <span class="logo">🌐 Translate Agent</span>
+  <span class="tab active" data-view="translate" onclick="switchView('translate')">翻译</span>
+  <span class="tab" data-view="chat" onclick="switchView('chat')">对话</span>
+  <span class="tab" data-view="settings" onclick="switchView('settings')">设置</span>
+  <span id="statusBadge">未配置</span>
+</div>
+<div id="main">
+  <div class="view active" id="view-translate">
+    <div class="toolbar">
+      <span class="lang"><label>目标语言</label>
+        <select id="targetLang">
+          <option value="中文">中文</option>
+          <option value="English">English</option>
+          <option value="日本語">日本語</option>
+          <option value="한국어">한국어</option>
+          <option value="Français">Français</option>
+          <option value="Deutsch">Deutsch</option>
+          <option value="Español">Español</option>
+          <option value="Русский">Русский</option>
+        </select>
+      </span>
+      <button class="btn primary" id="btnTranslate" onclick="doTranslate()">翻译</button>
+      <button class="btn" onclick="doSwap()">⇄</button>
+      <button class="btn clear" onclick="clearTr()">清空</button>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <label>原文</label>
+        <textarea id="srcText" placeholder="输入要翻译的文本…"></textarea>
+      </div>
+      <div class="col">
+        <label>译文 <span id="trLoading" style="display:none"><span class="spin"></span></span></label>
+        <div class="out" id="outText"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-chat">
+    <div id="chatLog"></div>
+    <div id="chatBar">
+      <textarea id="chatInput" placeholder="输入消息，Enter 发送，Shift+Enter 换行…"></textarea>
+      <button class="btn primary" id="btnSend" onclick="sendChat()">发送</button>
+      <button class="btn" onclick="clearChat()">清空</button>
+    </div>
+  </div>
+
+  <div class="view" id="view-settings">
+    <div class="wrap">
+      <div class="field">
+        <label>API 地址 (apiBase)</label>
+        <input id="cfgBase" placeholder="https://api.openai.com  或  https://api.deepseek.com" />
+        <div class="hint">兼容 OpenAI 的接口地址，可不带 /v1 后缀。</div>
+      </div>
+      <div class="field">
+        <label>API Key</label>
+        <input id="cfgKey" type="password" placeholder="sk-..." />
+      </div>
+      <div class="field row">
+        <span class="grow">
+          <label>模型</label>
+          <select id="cfgModel"><option value="">先点击右侧按钮探测…</option></select>
+        </span>
+        <button class="btn" id="btnProbe" onclick="doProbe()">探测模型</button>
+      </div>
+      <div class="savebar">
+        <button class="btn primary" onclick="doSave()">保存配置</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script language="JScript">
+var chatHistory = [];
+var chatBusy = false;
+
+function $(id){ return document.getElementById(id); }
+function shell(){ return new ActiveXObject("WScript.Shell"); }
+function fso(){ return new ActiveXObject("Scripting.FileSystemObject"); }
+
+function toast(msg, err){
+  var t = $("toast");
+  t.innerHTML = msg;
+  t.className = "show" + (err ? " err" : "");
+  setTimeout(function(){ t.className = ""; }, 2500);
+}
+
+function configPath(){
+  var prof = shell().ExpandEnvironmentStrings("%USERPROFILE%");
+  return prof + "\\.translate-agent\\config.json";
+}
+function readConfig(){
+  try{
+    var f = fso().OpenTextFile(configPath(), 1, false, 0);
+    var s = f.ReadAll(); f.Close();
+    return JSON.parse(s);
+  }catch(e){ return { apiBase:"", apiKey:"", model:"" }; }
+}
+function writeConfig(cfg){
+  var p = configPath(); var f = fso();
+  var dir = f.GetParentFolderName(p);
+  if(!f.FolderExists(dir)) f.CreateFolder(dir);
+  var out = f.CreateTextFile(p, true, false);
+  out.Write(JSON.stringify(cfg, null, 2));
+  out.Close();
+}
+function maskKey(k){ if(!k) return ""; return k.length>8 ? k.substr(0,4)+"****"+k.substr(-4) : "****"; }
+
+function trimBase(b){ if(!b) return ""; return b.replace(/\/+$/,""); }
+function modelsUrl(b){ b=trimBase(b); return (b.substr(-3)==="/v1") ? b+"/models" : b+"/v1/models"; }
+function chatUrl(b){ b=trimBase(b); return (b.substr(-3)==="/v1") ? b+"/chat/completions" : b+"/v1/chat/completions"; }
+
+function xhr(method, url, headers, body, cb){
+  var x;
+  try{ x = new ActiveXObject("WinHttp.WinHttpRequest.5.1"); }
+  catch(e){ cb(0, "无法创建 WinHTTP: "+e.message); return; }
+  x.SetTimeouts(30000, 30000, 30000, 180000);
+  try{
+    x.Open(method, url, true);
+    for(var k in headers){ if(headers.hasOwnProperty(k)) x.SetRequestHeader(k, headers[k]); }
+    x.Send(body);
+  }catch(e){ cb(0, "请求发送失败: "+e.message); return; }
+  var tries = 0;
+  function poll(){
+    var done = false;
+    try{ done = x.WaitForResponse(0.05); }catch(e){ cb(0, "等待响应失败: "+e.message); return; }
+    if(done){
+      var st = 0, txt = "";
+      try{ st = x.Status; txt = x.ResponseText; }catch(e){ cb(0, "读取响应失败: "+e.message); return; }
+      cb(st, txt);
+    } else {
+      tries++;
+      if(tries > 3000){ cb(0, "请求超时"); return; }
+      setTimeout(poll, 20);
+    }
+  }
+  setTimeout(poll, 10);
+}
+
+function apiHeaders(key){
+  return { "Content-Type":"application/json", "Authorization":"Bearer "+key };
+}
+
+function switchView(name){
+  var tabs = document.getElementsByTagName("span");
+  for(var i=0;i<tabs.length;i++){ if(tabs[i].className.indexOf("tab")>-1) tabs[i].className = "tab"+(tabs[i].getAttribute("data-view")===name?" active":""); }
+  var views = ["translate","chat","settings"];
+  for(var j=0;j<views.length;j++){ $("view-"+views[j]).className = "view"+(views[j]===name?" active":""); }
+}
+
+function updateStatus(ok){
+  var b = $("statusBadge");
+  b.innerHTML = ok ? "就绪" : "未配置";
+  b.className = ok ? "ok" : "";
+}
+
+function loadConfig(){
+  var cfg = readConfig();
+  $("cfgBase").value = cfg.apiBase || "";
+  $("cfgKey").value = "";
+  $("cfgKey").placeholder = cfg.apiKey ? (maskKey(cfg.apiKey)+" (已保存，留空不修改)") : "sk-...";
+  if(cfg.model){
+    var sel = $("cfgModel");
+    var found = false;
+    for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===cfg.model){ found=true; break; } }
+    if(!found){ var o = document.createElement("option"); o.value=cfg.model; o.innerHTML=cfg.model; sel.appendChild(o); }
+    sel.value = cfg.model;
+  }
+  updateStatus(cfg.apiBase && cfg.apiKey && cfg.model);
+}
+
+function doProbe(){
+  var apiBase = $("cfgBase").value.replace(/^\s+|\s+$/g,"");
+  var apiKey = $("cfgKey").value.replace(/^\s+|\s+$/g,"");
+  if(!apiBase){ toast("请先填写 API 地址", true); return; }
+  if(!apiKey){ var c = readConfig(); if(c.apiKey) apiKey = c.apiKey; }
+  if(!apiKey){ toast("请填写 API Key", true); return; }
+  var btn = $("btnProbe"); btn.disabled = true; btn.innerHTML = "探测中…";
+  xhr("GET", modelsUrl(apiBase), { "Authorization":"Bearer "+apiKey }, null, function(status, text){
+    btn.disabled = false; btn.innerHTML = "探测模型";
+    if(status!==200){ toast("探测失败 ("+status+"): "+text.substr(0,160), true); return; }
+    try{
+      var j = JSON.parse(text);
+      var list = (j.data || j.models || []);
+      var sel = $("cfgModel"); sel.options.length = 0;
+      var n = 0;
+      for(var i=0;i<list.length;i++){ var id = list[i].id || list[i].name; if(id){ sel.appendChild(new Option(id, id)); n++; } }
+      if(n===0) sel.appendChild(new Option("(未获取到模型)", ""));
+      toast("已获取 "+n+" 个模型");
+    }catch(e){ toast("解析模型失败: "+e.message, true); }
+  });
+}
+
+function doSave(){
+  var cur = readConfig();
+  var next = {
+    apiBase: $("cfgBase").value.replace(/^\s+|\s+$/g,"") || cur.apiBase,
+    apiKey: $("cfgKey").value.replace(/^\s+|\s+$/g,"") || cur.apiKey,
+    model: $("cfgModel").value || cur.model
+  };
+  try{ writeConfig(next); toast("配置已保存"); loadConfig(); }
+  catch(e){ toast("保存失败: "+e.message, true); }
+}
+
+function buildTranslateMessages(text, target){
+  var sys = "You are a professional translation engine. Translate the user's text into "+target+
+    ". Return ONLY the translated text, without explanations, notes, or quotation marks. "+
+    "Preserve formatting, code blocks, and placeholders.";
+  return [ { role:"system", content:sys }, { role:"user", content:text } ];
+}
+
+function doTranslate(){
+  var text = $("srcText").value.replace(/^\s+|\s+$/g,"");
+  if(!text){ toast("请输入原文", true); return; }
+  var cfg = readConfig();
+  if(!cfg.apiBase || !cfg.apiKey || !cfg.model){ toast("请先在设置中配置 API", true); switchView("settings"); return; }
+  $("trLoading").style.display = "";
+  $("outText").innerHTML = "";
+  var body = JSON.stringify({ model:cfg.model, messages:buildTranslateMessages(text, $("targetLang").value), stream:false });
+  xhr("POST", chatUrl(cfg.apiBase), apiHeaders(cfg.apiKey), body, function(status, text){
+    $("trLoading").style.display = "none";
+    if(status!==200){ toast("翻译失败 ("+status+"): "+text.substr(0,160), true); return; }
+    try{
+      var j = JSON.parse(text);
+      var out = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "";
+      $("outText").innerHTML = escapeHtml(out.replace(/^\s+|\s+$/g,""));
+    }catch(e){ toast("解析失败: "+e.message, true); }
+  });
+}
+
+function doSwap(){
+  var s = $("srcText").value;
+  $("srcText").value = $("outText").innerHTML;
+  $("outText").innerHTML = s;
+}
+function clearTr(){ $("srcText").value=""; $("outText").innerHTML=""; }
+
+function escapeHtml(s){
+  return String(s).replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">");
+}
+function addMsg(role, text){
+  var log = $("chatLog");
+  var d = document.createElement("div");
+  d.className = "msg "+role;
+  d.innerHTML = escapeHtml(text);
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+  return d;
+}
+
+function sendChat(){
+  if(chatBusy) return;
+  var text = $("chatInput").value.replace(/^\s+|\s+$/g,"");
+  if(!text) return;
+  var cfg = readConfig();
+  if(!cfg.apiBase || !cfg.apiKey || !cfg.model){ toast("请先在设置中配置 API 和模型", true); switchView("settings"); return; }
+  chatBusy = true; $("btnSend").disabled = true;
+  addMsg("user", text);
+  chatHistory.push({ role:"user", content:text });
+  $("chatInput").value = "";
+  var el = addMsg("assistant", "");
+  el.innerHTML = '<span class="spin"></span>';
+  var body = JSON.stringify({ model:cfg.model, messages:chatHistory, stream:false });
+  xhr("POST", chatUrl(cfg.apiBase), apiHeaders(cfg.apiKey), body, function(status, text){
+    chatBusy = false; $("btnSend").disabled = false;
+    if(status!==200){ el.innerHTML = "错误: "+escapeHtml(text.substr(0,200)); return; }
+    try{
+      var j = JSON.parse(text);
+      var out = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "(空回复)";
+      el.innerHTML = escapeHtml(out);
+      chatHistory.push({ role:"assistant", content:out });
+      $("chatLog").scrollTop = $("chatLog").scrollHeight;
+    }catch(e){ el.innerHTML = "解析失败: "+escapeHtml(e.message); }
+  });
+}
+
+function clearChat(){ chatHistory = []; $("chatLog").innerHTML = ""; addMsg("system", "对话已清空。"); }
+
+function onKey(e){
+  e = e || window.event;
+  if(e.keyCode === 13 && !e.shiftKey){ e.returnValue = false; sendChat(); return false; }
+}
+
+window.resizeTo(980, 660);
+var w = 980, h = 660;
+try{ w = screen.availWidth; h = screen.availHeight; }catch(e){}
+try{ window.moveTo((screen.width-980)/2, (screen.height-660)/2); }catch(e){}
+$("chatInput").onkeydown = onKey;
+loadConfig();
+addMsg("system", "欢迎使用 Translate Agent。在「设置」中配置 API 后即可开始翻译或对话。");
+</script>
+</body>
+</html>
